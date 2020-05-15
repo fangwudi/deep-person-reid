@@ -5,6 +5,11 @@ How-to
    :local:
 
 
+Prepare datasets
+-----------------
+See :ref:`datasets`.
+
+
 Find model keys
 -----------------
 Keys are listed under the *Public keys* section within each model class in :ref:`torchreid_models`.
@@ -196,23 +201,39 @@ Test a trained model
 You can load a trained model using :code:`torchreid.utils.load_pretrained_weights(model, weight_path)` and set ``test_only=True`` in ``engine.run()``.
 
 
+Fine-tune a model pre-trained on reid datasets
+-----------------------------------------------
+Use :code:`torchreid.utils.load_pretrained_weights(model, weight_path)` to load the pre-trained weights and then fine-tune on the dataset you want.
+
+
 Visualize learning curves with tensorboard
 --------------------------------------------
 The ``SummaryWriter()`` for tensorboard will be automatically initialized in ``engine.run()`` when you are training your model. Therefore, you do not need to do extra jobs. After the training is done, the ``*tf.events*`` file will be saved in ``save_dir``. Then, you just call ``tensorboard --logdir=your_save_dir`` in your terminal and visit ``http://localhost:6006/`` in a web browser. See `pytorch tensorboard <https://pytorch.org/docs/stable/tensorboard.html>`_ for further information.
 
 
-Visualize ranked results
--------------------------
-Ranked images can be visualized by setting ``visrank`` to true in ``engine.run()``. ``visrank_topk`` determines the top-k images to be visualized (Default is ``visrank_topk=10``). Note that ``visrank`` can only be used in test mode, i.e. ``test_only=True`` in ``engine.run()``. The images will be saved under ``save_dir/visrank_DATASETNAME`` where each image contains the top-k ranked list given a query. An example is shown below. Red and green denote incorrect and correct matches respectively.
+Visualize ranking results
+---------------------------
+This can be achieved by setting ``visrank`` to true in ``engine.run()``. ``visrank_topk`` determines the top-k images to be visualized (Default is ``visrank_topk=10``). Note that ``visrank`` can only be used in test mode, i.e. ``test_only=True`` in ``engine.run()``. The output will be saved under ``save_dir/visrank_DATASETNAME`` where each plot contains the top-k similar gallery images given a query. An example is shown below where red and green denote incorrect and correct matches respectively.
 
-.. image:: figures/ranked_results.jpg
+.. image:: figures/ranking_results.jpg
     :width: 800px
     :align: center
 
 
 Visualize activation maps
 --------------------------
-To understand where the CNN focuses on to extract features for ReID, you can visualize the activation maps as in `OSNet <https://arxiv.org/abs/1905.00953>`_. This can be achieved by setting ``visactmap=True`` in ``engine.run()`` (``test_only`` does not have to be True as ``visactmap`` is independent of ``test_only``. See the code for details). Images will be saved in ``save_dir/actmap_DATASETNAME``. An example is shown below (from left to right: image, activation map, overlapped image)
+To understand where the CNN focuses on to extract features for ReID, you can visualize the activation maps as in `OSNet <https://arxiv.org/abs/1905.00953>`_. This is implemented in ``tools/visualize_actmap.py`` (check the code for more details). An example running command is
+
+.. code-block:: shell
+    
+    python tools/visualize_actmap.py \
+    --root $DATA/reid \
+    -d market1501 \
+    -m osnet_x1_0 \
+    --weights PATH_TO_PRETRAINED_WEIGHTS \
+    --save-dir log/visactmap_osnet_x1_0_market1501
+
+The output will look like (from left to right: image, activation map, overlapped image)
 
 .. image:: figures/actmap.jpg
     :width: 300px
@@ -301,4 +322,30 @@ Use your own dataset
 
 Design your own Engine
 ------------------------
-A new Engine should be designed if you have your own loss function. The base Engine class ``torchreid.engine.Engine`` has implemented some generic methods which you can inherit to avoid re-writing. Please refer to the source code for more details. You are suggested to see how ``ImageSoftmaxEngine`` and ``ImageTripletEngine`` are constructed (also ``VideoSoftmaxEngine`` and ``VideoTripletEngine``). All you need to implement might be just a ``train()`` function.
+A new Engine should be designed if you have your own loss function. The base Engine class ``torchreid.engine.Engine`` has implemented some generic methods which you can inherit to avoid re-writing. Please refer to the source code for more details. You are suggested to see how ``ImageSoftmaxEngine`` and ``ImageTripletEngine`` are constructed (also ``VideoSoftmaxEngine`` and ``VideoTripletEngine``). All you need to implement might be just a ``forward_backward()`` function.
+
+
+Use Torchreid as a feature extractor in your projects
+-------------------------------------------------------
+We have provided a simple API for feature extraction, which accepts input of various types such as a list of image paths or numpy arrays. More details can be found in the code at ``torchreid/utils/feature_extractor.py``. Here we show a simple example of how to extract features given a list of image paths.
+
+.. code-block:: python
+
+    from torchreid.utils import FeatureExtractor
+
+    extractor = FeatureExtractor(
+        model_name='osnet_x1_0',
+        model_path='a/b/c/model.pth.tar',
+        device='cuda'
+    )
+
+    image_list = [
+        'a/b/c/image001.jpg',
+        'a/b/c/image002.jpg',
+        'a/b/c/image003.jpg',
+        'a/b/c/image004.jpg',
+        'a/b/c/image005.jpg'
+    ]
+
+    features = extractor(image_list)
+    print(features.shape) # output (5, 512)

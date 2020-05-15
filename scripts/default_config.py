@@ -1,4 +1,3 @@
-import argparse
 from yacs.config import CfgNode as CN
 
 
@@ -27,7 +26,8 @@ def get_default_config():
     cfg.data.norm_mean = [0.485, 0.456, 0.406] # default is imagenet mean
     cfg.data.norm_std = [0.229, 0.224, 0.225] # default is imagenet std
     cfg.data.save_dir = 'log' # path to save log
-    
+    cfg.data.load_train_targets = False
+
     # specific datasets
     cfg.market1501 = CN()
     cfg.market1501.use_500k_distractors = False # add 500k distractors to the gallery set for market1501
@@ -35,10 +35,11 @@ def get_default_config():
     cfg.cuhk03.labeled_images = False # use labeled images, if False, use detected images
     cfg.cuhk03.classic_split = False # use classic split by Li et al. CVPR14
     cfg.cuhk03.use_metric_cuhk03 = False # use cuhk03's metric for evaluation
-    
+
     # sampler
     cfg.sampler = CN()
-    cfg.sampler.train_sampler = 'RandomSampler'
+    cfg.sampler.train_sampler = 'RandomSampler' # sampler for source train loader
+    cfg.sampler.train_sampler_t = 'RandomSampler' # sampler for target train loader
     cfg.sampler.num_instances = 4 # number of instances per identity for RandomIdentitySampler
 
     # video reid setting
@@ -56,7 +57,9 @@ def get_default_config():
     cfg.train.start_epoch = 0
     cfg.train.batch_size = 32
     cfg.train.fixbase_epoch = 0 # number of epochs to fix base layers
-    cfg.train.open_layers = ['classifier'] # layers for training while keeping others frozen
+    cfg.train.open_layers = [
+        'classifier'
+    ] # layers for training while keeping others frozen
     cfg.train.staged_lr = False # set different lr to different layers
     cfg.train.new_layers = ['classifier'] # newly added layers with default lr
     cfg.train.base_lr_mult = 0.1 # learning rate multiplier for base layers
@@ -84,7 +87,7 @@ def get_default_config():
     cfg.loss.softmax.label_smooth = True # use label smoothing regularizer
     cfg.loss.triplet = CN()
     cfg.loss.triplet.margin = 0.3 # distance margin
-    cfg.loss.triplet.weight_t =1. # weight to balance hard triplet loss
+    cfg.loss.triplet.weight_t = 1. # weight to balance hard triplet loss
     cfg.loss.triplet.weight_x = 0. # weight to balance cross entropy loss
 
     # test
@@ -99,7 +102,6 @@ def get_default_config():
     cfg.test.rerank = False # use person re-ranking
     cfg.test.visrank = False # visualize ranked results (only available when cfg.test.evaluate=True)
     cfg.test.visrank_topk = 10 # top-k ranks to visualize
-    cfg.test.visactmap = False # visualize CNN activation maps
 
     return cfg
 
@@ -117,11 +119,13 @@ def imagedata_kwargs(cfg):
         'use_gpu': cfg.use_gpu,
         'split_id': cfg.data.split_id,
         'combineall': cfg.data.combineall,
+        'load_train_targets': cfg.data.load_train_targets,
         'batch_size_train': cfg.train.batch_size,
         'batch_size_test': cfg.test.batch_size,
         'workers': cfg.data.workers,
         'num_instances': cfg.sampler.num_instances,
         'train_sampler': cfg.sampler.train_sampler,
+        'train_sampler_t': cfg.sampler.train_sampler_t,
         # image
         'cuhk03_labeled': cfg.cuhk03.labeled_images,
         'cuhk03_classic_split': cfg.cuhk03.classic_split,
@@ -196,6 +200,5 @@ def engine_run_kwargs(cfg):
         'visrank_topk': cfg.test.visrank_topk,
         'use_metric_cuhk03': cfg.cuhk03.use_metric_cuhk03,
         'ranks': cfg.test.ranks,
-        'rerank': cfg.test.rerank,
-        'visactmap': cfg.test.visactmap
+        'rerank': cfg.test.rerank
     }
